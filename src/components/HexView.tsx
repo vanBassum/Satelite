@@ -33,29 +33,29 @@ const ROW_SIZE = 16
 
 const POL_LABEL = ["H", "V", "H+22k", "V+22k"]
 
-function parsedLines(type: FieldType, buf: Uint8Array, satellites: SatelliteRecord[]): string[] {
-  const defined = satellites.filter(s => !s.name.includes("#UNDEFINED"))
-  const pad2 = (n: number) => String(n).padStart(2, " ")
+function parsedLines(
+  type: FieldType,
+  buf: Uint8Array,
+  satellites: SatelliteRecord[],
+  hoveredOffset: number | null,
+): string[] {
+  if (hoveredOffset === null) return []
 
   switch (type) {
     case "profile": {
-      return Array.from({ length: 6 }, (_, p) => {
-        const start = 0x0A6 + p * 16
-        if (start + 16 > buf.length) return `${p + 1}: —`
-        const name = String.fromCharCode(...buf.slice(start, start + 16))
-          .replace(/[\x00\s]+$/, "")
-          .trim()
-        return `${p + 1}: ${name || "(empty)"}`
-      })
+      const p = Math.floor((hoveredOffset - 0x0A6) / 16)
+      if (p < 0 || p >= 6 || 0x0A6 + p * 16 + 16 > buf.length) return []
+      const name = String.fromCharCode(...buf.slice(0x0A6 + p * 16, 0x0A6 + p * 16 + 16))
+        .replace(/[\x00\s]+$/, "")
+        .trim()
+      return [`Profile ${p + 1}: ${name || "(empty)"}`]
     }
     case "firmware": {
       if (0x38A > buf.length) return []
       const magic = Array.from(buf.slice(0x37A, 0x37D))
         .map(b => b.toString(16).toUpperCase().padStart(2, "0"))
         .join(" ")
-      const id = String.fromCharCode(...buf.slice(0x37D, 0x38A))
-        .replace(/\x00/g, "")
-        .trim()
+      const id = String.fromCharCode(...buf.slice(0x37D, 0x38A)).replace(/\x00/g, "").trim()
       return [`Magic: ${magic}`, `ID: ${id}`]
     }
     case "version": {
@@ -67,44 +67,28 @@ function parsedLines(type: FieldType, buf: Uint8Array, satellites: SatelliteReco
       ]
     }
     case "ch_table": {
-      const nonDefault: { ch: number; freq: number }[] = []
-      for (let ch = 0; ch < 180; ch++) {
-        const off = 0x206 + ch * 2
-        if (off + 1 >= buf.length) break
-        const freq = buf[off] | (buf[off + 1] << 8)
-        if (freq !== 999) nonDefault.push({ ch: ch + 1, freq })
-      }
-      if (nonDefault.length === 0) return ["All 180 channels: 999 MHz (default)"]
-      return nonDefault.map(({ ch, freq }) => `Ch ${pad2(ch)}: ${freq} MHz`)
+      const ch = Math.floor((hoveredOffset - 0x206) / 2)
+      if (ch < 0 || ch >= 180) return []
+      const off = 0x206 + ch * 2
+      const freq = buf[off] | (buf[off + 1] << 8)
+      return [`Channel ${ch + 1}: ${freq} MHz`]
     }
-    case "name":
-      return defined.map(s => `${pad2(s.index + 1)}: ${s.name.trim()}`)
-    case "flags":
-      return defined.map(
-        s => `${pad2(s.index + 1)}: 0x${s.flags.toString(16).padStart(2, "0").toUpperCase()}`,
-      )
-    case "freq":
-      return defined.map(
-        s =>
-          `${pad2(s.index + 1)}: ${s.transponders.map(tp => tp.freq ? `${tp.freq}` : "—").join(" / ")} MHz`,
-      )
-    case "srate":
-      return defined.map(
-        s =>
-          `${pad2(s.index + 1)}: ${s.transponders.map(tp => tp.srate ? `${tp.srate}` : "—").join(" / ")} kS/s`,
-      )
-    case "pol":
-      return defined.map(
-        s =>
-          `${pad2(s.index + 1)}: ${s.transponders.map(tp => POL_LABEL[tp.pol] ?? "?").join(" / ")}`,
-      )
-    case "fecmod":
-      return defined.map(
-        s =>
-          `${pad2(s.index + 1)}: ${s.transponders.map(tp => "0x" + tp.fecMod.toString(16).padStart(2, "0").toUpperCase()).join(" / ")}`,
-      )
-    default:
-      return []
+    default: {
+      if (hoveredOffset < 0x400) return []
+      const satIdx = Math.floor((hoveredOffset - 0x400) / 64)
+      if (satIdx < 0 || satIdx >= satellites.length) return []
+      const s = satellites[satIdx]
+      const tps = s.transponders.map(tp => tp)
+      switch (type) {
+        case "name":    return [s.name.trim()]
+        case "flags":   return [`0x${s.flags.toString(16).padStart(2, "0").toUpperCase()}`]
+        case "freq":    return [tps.map(tp => tp.freq  ? `${tp.freq} MHz`  : "—").join(" / ")]
+        case "srate":   return [tps.map(tp => tp.srate ? `${tp.srate} kS/s` : "—").join(" / ")]
+        case "pol":     return [tps.map(tp => POL_LABEL[tp.pol] ?? "?").join(" / ")]
+        case "fecmod":  return [tps.map(tp => "0x" + tp.fecMod.toString(16).padStart(2, "0").toUpperCase()).join(" / ")]
+        default:        return []
+      }
+    }
   }
 }
 
@@ -197,7 +181,7 @@ export function HexView() {
             const meta = FIELD_META[type]
             const isActive =
               highlightType === type || (highlightType === null && activeType === type)
-            const lines = isActive ? parsedLines(type, buf, satellites) : []
+            const lines = isActive ? parsedLines(type, buf, satellites, hoveredOffset) : []
             return (
               <button
                 key={type}
