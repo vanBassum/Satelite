@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { cn } from "@/lib/utils"
 import { buildByteMap, type ByteAnnotation, type FieldType, type SatelliteRecord } from "@/lib/eeprom"
 import { useEepromStore } from "@/lib/store"
@@ -30,6 +30,8 @@ const LEGEND_TYPES: FieldType[] = [
 ]
 
 const ROW_SIZE = 16
+const ROW_HEIGHT = 20 // leading-5 = 1.25rem at 16px base
+const OVERSCAN = 5
 
 const POL_LABEL = ["H", "V", "H+22k", "V+22k"]
 
@@ -99,6 +101,22 @@ export function HexView() {
   const [hoveredOffset, setHoveredOffset] = useState<number | null>(null)
   const [highlightType, setHighlightType] = useState<FieldType | null>(null)
 
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const [scrollTop, setScrollTop] = useState(0)
+  const [viewHeight, setViewHeight] = useState(400)
+
+  useEffect(() => {
+    const el = scrollRef.current
+    if (!el) return
+    setViewHeight(el.clientHeight)
+    setScrollTop(el.scrollTop)
+    const onScroll = () => setScrollTop(el.scrollTop)
+    const ro = new ResizeObserver(() => setViewHeight(el.clientHeight))
+    el.addEventListener("scroll", onScroll, { passive: true })
+    ro.observe(el)
+    return () => { el.removeEventListener("scroll", onScroll); ro.disconnect() }
+  }, [])
+
   const hoveredAnn: ByteAnnotation | null =
     hoveredOffset !== null ? byteMap[hoveredOffset] : null
   const activeType = highlightType ?? hoveredAnn?.type ?? null
@@ -109,6 +127,13 @@ export function HexView() {
       out.push({ offset: i, bytes: Array.from(buf.slice(i, i + ROW_SIZE)) })
     return out
   }, [buf])
+
+  const totalRows = rows.length
+  const startIdx = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - OVERSCAN)
+  const endIdx = Math.min(totalRows - 1, Math.ceil((scrollTop + viewHeight) / ROW_HEIGHT) + OVERSCAN)
+  const visibleRows = rows.slice(startIdx, endIdx + 1)
+  const paddingTop = startIdx * ROW_HEIGHT
+  const paddingBottom = (totalRows - endIdx - 1) * ROW_HEIGHT
 
   function byteCls(offset: number, ci: number): string {
     const { type } = byteMap[offset]
@@ -126,32 +151,34 @@ export function HexView() {
   return (
     <div className="flex h-full overflow-hidden">
       {/* Hex grid */}
-      <div className="flex-1 overflow-auto p-4 font-mono text-xs leading-5">
-        {rows.map(({ offset, bytes }) => (
-          <div key={offset} className="flex items-center">
-            <span className="mr-3 w-10 shrink-0 select-none text-muted-foreground">
-              {offset.toString(16).toUpperCase().padStart(4, "0")}
-            </span>
-            <span className="flex">
-              {bytes.map((byte, ci) => {
-                const off = offset + ci
-                return (
-                  <span
-                    key={ci}
-                    className={byteCls(off, ci)}
-                    onMouseEnter={() => setHoveredOffset(off)}
-                    onMouseLeave={() => setHoveredOffset(null)}
-                  >
-                    {byte.toString(16).toUpperCase().padStart(2, "0")}
-                  </span>
-                )
-              })}
-            </span>
-            <span className="ml-3 select-none text-muted-foreground/50">
-              {bytes.map(b => (b >= 0x20 && b < 0x7f ? String.fromCharCode(b) : "·")).join("")}
-            </span>
-          </div>
-        ))}
+      <div ref={scrollRef} className="flex-1 overflow-auto p-4 font-mono text-xs leading-5">
+        <div style={{ paddingTop, paddingBottom }}>
+          {visibleRows.map(({ offset, bytes }) => (
+            <div key={offset} className="flex items-center">
+              <span className="mr-3 w-10 shrink-0 select-none text-muted-foreground">
+                {offset.toString(16).toUpperCase().padStart(4, "0")}
+              </span>
+              <span className="flex">
+                {bytes.map((byte, ci) => {
+                  const off = offset + ci
+                  return (
+                    <span
+                      key={ci}
+                      className={byteCls(off, ci)}
+                      onMouseEnter={() => setHoveredOffset(off)}
+                      onMouseLeave={() => setHoveredOffset(null)}
+                    >
+                      {byte.toString(16).toUpperCase().padStart(2, "0")}
+                    </span>
+                  )
+                })}
+              </span>
+              <span className="ml-3 select-none text-muted-foreground/50">
+                {bytes.map(b => (b >= 0x20 && b < 0x7f ? String.fromCharCode(b) : "·")).join("")}
+              </span>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Right legend panel */}
