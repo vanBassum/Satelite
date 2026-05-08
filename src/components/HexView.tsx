@@ -3,22 +3,31 @@ import { cn } from "@/lib/utils"
 import { buildByteMap, type ByteAnnotation, type FieldType } from "@/lib/eeprom"
 
 const FIELD_META: Record<FieldType, { label: string; cls: string; activeCls: string }> = {
-  header:    { label: "Header",       cls: "bg-slate-100 dark:bg-slate-800",         activeCls: "bg-slate-200 dark:bg-slate-700" },
-  name:      { label: "Name",         cls: "bg-blue-100 dark:bg-blue-900/60",        activeCls: "bg-blue-200 dark:bg-blue-800" },
-  flags:     { label: "Flags",        cls: "bg-violet-100 dark:bg-violet-900/60",    activeCls: "bg-violet-200 dark:bg-violet-800" },
-  reservedA: { label: "Reserved A",   cls: "bg-slate-50 dark:bg-slate-800/50",       activeCls: "bg-slate-200 dark:bg-slate-700" },
-  freq:      { label: "Frequency",    cls: "bg-green-100 dark:bg-green-900/60",      activeCls: "bg-green-200 dark:bg-green-800" },
-  srate:     { label: "Symbol Rate",  cls: "bg-yellow-100 dark:bg-yellow-900/60",    activeCls: "bg-yellow-200 dark:bg-yellow-800" },
-  pol:       { label: "Polarization", cls: "bg-rose-100 dark:bg-rose-900/60",        activeCls: "bg-rose-200 dark:bg-rose-800" },
-  reservedB: { label: "Reserved B",   cls: "bg-slate-50 dark:bg-slate-800/50",       activeCls: "bg-slate-200 dark:bg-slate-700" },
-  fecmod:    { label: "FEC / Mod",    cls: "bg-cyan-100 dark:bg-cyan-900/60",        activeCls: "bg-cyan-200 dark:bg-cyan-800" },
-  pad:       { label: "Pad",          cls: "bg-neutral-100 dark:bg-neutral-800",     activeCls: "bg-neutral-200 dark:bg-neutral-700" },
-  unknown:   { label: "Unknown",      cls: "bg-background",                          activeCls: "bg-muted" },
+  // Header sub-regions
+  config:    { label: "Device Config",     cls: "bg-amber-100 dark:bg-amber-900/50",    activeCls: "bg-amber-200 dark:bg-amber-800" },
+  profile:   { label: "Profile Names",     cls: "bg-teal-100 dark:bg-teal-900/50",      activeCls: "bg-teal-200 dark:bg-teal-800" },
+  lnb:       { label: "LNB Config",        cls: "bg-indigo-100 dark:bg-indigo-900/50",  activeCls: "bg-indigo-200 dark:bg-indigo-800" },
+  ch_table:  { label: "Channel Table",     cls: "bg-orange-100 dark:bg-orange-900/50",  activeCls: "bg-orange-200 dark:bg-orange-800" },
+  firmware:  { label: "Firmware Magic/ID", cls: "bg-red-100 dark:bg-red-900/50",        activeCls: "bg-red-200 dark:bg-red-800" },
+  version:   { label: "Version Info",      cls: "bg-pink-100 dark:bg-pink-900/50",      activeCls: "bg-pink-200 dark:bg-pink-800" },
+  header:    { label: "Header (unknown)",  cls: "bg-slate-100 dark:bg-slate-800",       activeCls: "bg-slate-200 dark:bg-slate-700" },
+  // Satellite record fields
+  name:      { label: "Sat Name",          cls: "bg-blue-100 dark:bg-blue-900/60",      activeCls: "bg-blue-200 dark:bg-blue-800" },
+  flags:     { label: "Flags",             cls: "bg-violet-100 dark:bg-violet-900/60",  activeCls: "bg-violet-200 dark:bg-violet-800" },
+  reservedA: { label: "Reserved A",        cls: "bg-slate-50 dark:bg-slate-800/50",     activeCls: "bg-slate-200 dark:bg-slate-700" },
+  freq:      { label: "Frequency",         cls: "bg-green-100 dark:bg-green-900/60",    activeCls: "bg-green-200 dark:bg-green-800" },
+  srate:     { label: "Symbol Rate",       cls: "bg-yellow-100 dark:bg-yellow-900/60",  activeCls: "bg-yellow-200 dark:bg-yellow-800" },
+  pol:       { label: "Polarization",      cls: "bg-rose-100 dark:bg-rose-900/60",      activeCls: "bg-rose-200 dark:bg-rose-800" },
+  reservedB: { label: "Reserved B",        cls: "bg-slate-50 dark:bg-slate-800/50",     activeCls: "bg-slate-200 dark:bg-slate-700" },
+  fecmod:    { label: "FEC / Mod",         cls: "bg-cyan-100 dark:bg-cyan-900/60",      activeCls: "bg-cyan-200 dark:bg-cyan-800" },
+  pad:       { label: "Pad",               cls: "bg-neutral-100 dark:bg-neutral-800",   activeCls: "bg-neutral-200 dark:bg-neutral-700" },
+  unknown:   { label: "Unknown",           cls: "bg-background",                        activeCls: "bg-muted" },
 }
 
 const LEGEND_TYPES: FieldType[] = [
+  "config", "profile", "lnb", "ch_table", "firmware", "version", "header",
   "name", "flags", "freq", "srate", "pol", "fecmod",
-  "reservedA", "reservedB", "pad", "header", "unknown",
+  "reservedA", "reservedB", "pad", "unknown",
 ]
 
 const ROW_SIZE = 16

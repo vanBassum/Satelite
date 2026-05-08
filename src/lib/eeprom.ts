@@ -47,7 +47,8 @@ export function parseEeprom(buf: Uint8Array): SatelliteRecord[] {
 }
 
 export type FieldType =
-  | 'header' | 'name' | 'flags' | 'reservedA'
+  | 'header' | 'config' | 'profile' | 'lnb' | 'ch_table' | 'firmware' | 'version'
+  | 'name' | 'flags' | 'reservedA'
   | 'freq' | 'srate' | 'pol' | 'reservedB'
   | 'fecmod' | 'pad' | 'unknown'
 
@@ -62,8 +63,43 @@ export function buildByteMap(bufLen: number): ByteAnnotation[] {
     label: `0x${i.toString(16).toUpperCase().padStart(4, '0')}`,
   }))
 
+  // Generic header baseline — overridden below for identified regions
   for (let i = 0; i < Math.min(SAT_TABLE, bufLen); i++)
     map[i] = { type: 'header', label: `Header +0x${i.toString(16).toUpperCase().padStart(3, '0')}` }
+
+  // Device configuration block (0x000–0x07F)
+  for (let i = 0; i < 0x080 && i < bufLen; i++)
+    map[i] = { type: 'config', label: `Config +0x${i.toString(16).toUpperCase().padStart(3, '0')}` }
+
+  // Antenna profile name slots (0x0A6–0x105): 6 × 16-byte null-padded strings
+  // Known names in this sample: Cosmo Vision, Caro Vision TWIN, Samy Vision,
+  //   Oyster Vision 2+, Caro Vision 2+, Spare1
+  for (let p = 0; p < 6; p++) {
+    for (let j = 0; j < 16; j++) {
+      const off = 0x0A6 + p * 16 + j
+      if (off < bufLen)
+        map[off] = { type: 'profile', label: `Profile ${p + 1} · Name [${j}]` }
+    }
+  }
+
+  // LNB / signal configuration block (0x1F6–0x205)
+  for (let i = 0; i < 16 && 0x1F6 + i < bufLen; i++)
+    map[0x1F6 + i] = { type: 'lnb', label: `LNB Config [${i}]` }
+
+  // Channel frequency table (0x206–0x36D): 180 × U16 LE presets (default = 999)
+  for (let ch = 0; ch < 180; ch++) {
+    const off = 0x206 + ch * 2
+    if (off < bufLen)     map[off]     = { type: 'ch_table', label: `Channel ${ch + 1} · freq lo` }
+    if (off + 1 < bufLen) map[off + 1] = { type: 'ch_table', label: `Channel ${ch + 1} · freq hi` }
+  }
+
+  // Firmware magic (0x37A–0x37C: 99 AA 55) + ID string "UEU/30MAR2009" (0x37C–0x389)
+  for (let i = 0; i < 16 && 0x37A + i < bufLen; i++)
+    map[0x37A + i] = { type: 'firmware', label: i < 3 ? `Firmware Magic [${i}]` : `Firmware ID [${i - 3}]` }
+
+  // Firmware version info (0x3A0–0x3AF)
+  for (let i = 0; i < 16 && 0x3A0 + i < bufLen; i++)
+    map[0x3A0 + i] = { type: 'version', label: `Version Info [${i}]` }
 
   for (let s = 0; s < SAT_COUNT; s++) {
     const b = SAT_TABLE + s * RECORD_SIZE
