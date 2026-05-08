@@ -17,13 +17,14 @@ import { useTheme } from "@/components/theme-provider"
 import { EepromEditor } from "@/components/EepromEditor"
 import { HexView } from "@/components/HexView"
 import { parseIntelHex, serializeIntelHex } from "@/lib/intel-hex"
+import { applyEeprom } from "@/lib/eeprom"
 import { useEepromStore } from "@/lib/store"
 import { useState } from "react"
 
 type Page = "satellites" | "hex"
 
 export function App() {
-  const { buf, load } = useEepromStore()
+  const { buf, satellites, load } = useEepromStore()
   const [page, setPage] = useState<Page>("satellites")
   const fileRef = useRef<HTMLInputElement>(null)
 
@@ -41,7 +42,9 @@ export function App() {
 
   function handleDownload() {
     if (!buf) return
-    const blob = new Blob([serializeIntelHex(buf)], { type: "application/octet-stream" })
+    const clone = new Uint8Array(buf)
+    applyEeprom(clone, satellites)
+    const blob = new Blob([serializeIntelHex(clone)], { type: "application/octet-stream" })
     const url = URL.createObjectURL(blob)
     const a = document.createElement("a")
     a.href = url

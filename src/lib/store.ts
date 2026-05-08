@@ -1,5 +1,5 @@
 import { create } from "zustand"
-import { parseEeprom, applyEeprom, type SatelliteRecord, type Transponder } from "./eeprom"
+import { parseEeprom, type SatelliteRecord, type Transponder } from "./eeprom"
 
 interface EepromStore {
   buf: Uint8Array | null
@@ -17,18 +17,13 @@ export const useEepromStore = create<EepromStore>(set => ({
     set({ buf: raw, satellites: parseEeprom(raw) }),
 
   patchSat: (idx, patch) =>
-    set(state => {
-      if (!state.buf) return state
-      const satellites = state.satellites.map((s, i) => (i === idx ? { ...s, ...patch } : s))
-      const buf = new Uint8Array(state.buf)
-      applyEeprom(buf, satellites)
-      return { buf, satellites }
-    }),
+    set(state => ({
+      satellites: state.satellites.map((s, i) => (i === idx ? { ...s, ...patch } : s)),
+    })),
 
   patchTp: (satIdx, tpIdx, patch) =>
-    set(state => {
-      if (!state.buf) return state
-      const satellites = state.satellites.map((s, i) => {
+    set(state => ({
+      satellites: state.satellites.map((s, i) => {
         if (i !== satIdx) return s
         return {
           ...s,
@@ -36,9 +31,6 @@ export const useEepromStore = create<EepromStore>(set => ({
             ti === tpIdx ? { ...tp, ...patch } : tp,
           ),
         }
-      })
-      const buf = new Uint8Array(state.buf)
-      applyEeprom(buf, satellites)
-      return { buf, satellites }
-    }),
+      }),
+    })),
 }))

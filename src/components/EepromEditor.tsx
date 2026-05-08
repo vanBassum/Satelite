@@ -1,29 +1,27 @@
 import { useState } from "react"
 import { ChevronDownIcon, ChevronRightIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { type SatelliteRecord, type Transponder } from "@/lib/eeprom"
+import { type Transponder } from "@/lib/eeprom"
 import { useEepromStore } from "@/lib/store"
 
 const field =
   "rounded border border-input bg-background px-2 py-1 font-mono text-sm focus:outline-none focus:ring-1 focus:ring-ring"
 
 export function EepromEditor() {
-  const { satellites, patchSat, patchTp } = useEepromStore()
+  const count = useEepromStore(s => s.satellites.length)
   const [expanded, setExpanded] = useState<number | null>(null)
 
-  if (satellites.length === 0) return null
+  if (count === 0) return null
 
   return (
     <div className="p-6">
       <div className="divide-y rounded-lg border">
-        {satellites.map((sat, i) => (
+        {Array.from({ length: count }, (_, i) => (
           <SatRow
             key={i}
-            sat={sat}
+            index={i}
             isExpanded={expanded === i}
             onToggle={() => setExpanded(prev => (prev === i ? null : i))}
-            onPatchSat={patch => patchSat(i, patch)}
-            onPatchTp={(ti, patch) => patchTp(i, ti, patch)}
           />
         ))}
       </div>
@@ -31,15 +29,10 @@ export function EepromEditor() {
   )
 }
 
-interface SatRowProps {
-  sat: SatelliteRecord
-  isExpanded: boolean
-  onToggle: () => void
-  onPatchSat: (patch: Partial<SatelliteRecord>) => void
-  onPatchTp: (tpIdx: number, patch: Partial<Transponder>) => void
-}
-
-function SatRow({ sat, isExpanded, onToggle, onPatchSat, onPatchTp }: SatRowProps) {
+function SatRow({ index, isExpanded, onToggle }: { index: number; isExpanded: boolean; onToggle: () => void }) {
+  const sat = useEepromStore(s => s.satellites[index])
+  const patchSat = useEepromStore(s => s.patchSat)
+  const patchTp = useEepromStore(s => s.patchTp)
   const isDefined = !sat.name.includes("#UNDEFINED")
 
   return (
@@ -70,7 +63,7 @@ function SatRow({ sat, isExpanded, onToggle, onPatchSat, onPatchTp }: SatRowProp
                 className={cn(field, "w-44")}
                 maxLength={16}
                 value={sat.name}
-                onChange={e => onPatchSat({ name: e.target.value })}
+                onChange={e => patchSat(index, { name: e.target.value })}
                 onClick={e => e.stopPropagation()}
               />
             </label>
@@ -81,7 +74,7 @@ function SatRow({ sat, isExpanded, onToggle, onPatchSat, onPatchTp }: SatRowProp
                 value={"0x" + sat.flags.toString(16).padStart(2, "0").toUpperCase()}
                 onChange={e => {
                   const v = parseInt(e.target.value.replace(/^0x/i, ""), 16)
-                  if (!isNaN(v)) onPatchSat({ flags: v & 0xff })
+                  if (!isNaN(v)) patchSat(index, { flags: v & 0xff })
                 }}
                 onClick={e => e.stopPropagation()}
               />
@@ -101,7 +94,7 @@ function SatRow({ sat, isExpanded, onToggle, onPatchSat, onPatchTp }: SatRowProp
               </thead>
               <tbody>
                 {sat.transponders.map((tp, ti) => (
-                  <TpRow key={ti} index={ti} tp={tp} onChange={patch => onPatchTp(ti, patch)} />
+                  <TpRow key={ti} index={ti} tp={tp} onChange={patch => patchTp(index, ti, patch)} />
                 ))}
               </tbody>
             </table>
