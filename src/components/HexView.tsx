@@ -16,9 +16,9 @@ const FIELD_META: Record<FieldType, { label: string; cls: string; activeCls: str
   reservedA: { label: "Reserved A",        cls: "bg-slate-50 dark:bg-slate-800/50",     activeCls: "bg-slate-200 dark:bg-slate-700",     detail: "+0x11–0x1A · 10 bytes per record\nUnused / reserved" },
   freq:      { label: "Frequency",         cls: "bg-green-100 dark:bg-green-900/60",    activeCls: "bg-green-200 dark:bg-green-800",     detail: "+0x1B–0x22 · 8 bytes per record\n4 × U16-LE transponder frequency in MHz" },
   srate:     { label: "Symbol Rate",       cls: "bg-yellow-100 dark:bg-yellow-900/60",  activeCls: "bg-yellow-200 dark:bg-yellow-800",   detail: "+0x23–0x2A · 8 bytes per record\n4 × U16-LE symbol rate in kS/s" },
-  pol:       { label: "Polarization",      cls: "bg-rose-100 dark:bg-rose-900/60",      activeCls: "bg-rose-200 dark:bg-rose-800",       detail: "+0x2B–0x2E · 4 bytes per record\n0=H · 1=V · 2=H+22kHz · 3=V+22kHz" },
+  pol:       { label: "Polarization",      cls: "bg-rose-100 dark:bg-rose-900/60",      activeCls: "bg-rose-200 dark:bg-rose-800",       detail: "+0x2B–0x2E · 4 bytes per record\n0=H · 1=V (2/3 = +22kHz unconfirmed)" },
   reservedB: { label: "Reserved B",        cls: "bg-slate-50 dark:bg-slate-800/50",     activeCls: "bg-slate-200 dark:bg-slate-700",     detail: "+0x2F–0x36 · 8 bytes per record\nUnused / reserved" },
-  fecmod:    { label: "FEC / Mod",         cls: "bg-cyan-100 dark:bg-cyan-900/60",      activeCls: "bg-cyan-200 dark:bg-cyan-800",       detail: "+0x37–0x3A · 4 bytes per record\nFEC + modulation, nibble-packed (TBD)" },
+  fecmod:    { label: "FEC / Mod",         cls: "bg-cyan-100 dark:bg-cyan-900/60",      activeCls: "bg-cyan-200 dark:bg-cyan-800",       detail: "+0x37–0x3A · 4 bytes per record\nHigh nibble = mod (0x1=QPSK)\nLow nibble = FEC numerator (1=1/2 2=2/3 3=3/4 5=5/6 7=7/8)" },
   pad:       { label: "Pad",               cls: "bg-neutral-100 dark:bg-neutral-800",   activeCls: "bg-neutral-200 dark:bg-neutral-700", detail: "+0x3B–0x3F · 5 bytes per record\nPadding bytes" },
   unknown:   { label: "Unknown",           cls: "bg-background",                        activeCls: "bg-muted",                           detail: "Unidentified bytes" },
 }
@@ -85,7 +85,14 @@ function parsedLines(
         case "freq":    return [tps.map(tp => tp.freq  ? `${tp.freq} MHz`  : "—").join(" / ")]
         case "srate":   return [tps.map(tp => tp.srate ? `${tp.srate} kS/s` : "—").join(" / ")]
         case "pol":     return [tps.map(tp => POL_LABEL[tp.pol] ?? "?").join(" / ")]
-        case "fecmod":  return [tps.map(tp => "0x" + tp.fecMod.toString(16).padStart(2, "0").toUpperCase()).join(" / ")]
+        case "fecmod":  return [tps.map(tp => {
+          const mod = (tp.fecMod >> 4) & 0xf
+          const fec = tp.fecMod & 0xf
+          const modStr = mod === 1 ? "QPSK" : `mod=0x${mod.toString(16)}`
+          const fecTable: Record<number, string> = { 1: "1/2", 2: "2/3", 3: "3/4", 5: "5/6", 7: "7/8" }
+          const fecStr = fecTable[fec] ?? `FEC=0x${fec.toString(16)}`
+          return tp.fecMod ? `${modStr} ${fecStr}` : "—"
+        }).join(" / ")]
         default:        return []
       }
     }

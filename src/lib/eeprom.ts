@@ -1,8 +1,8 @@
 export interface Transponder {
   freq: number // MHz
   srate: number // kS/s
-  pol: number // 0=H 1=V 2=H+22kHz 3=V+22kHz
-  fecMod: number // raw byte — high nibble=mod, low nibble=FEC (not yet fully confirmed)
+  pol: number // 0=H 1=V (2=H+22kHz 3=V+22kHz not confirmed in any known file)
+  fecMod: number // nibble-packed: high nibble = modulation (0x1=QPSK), low nibble = FEC numerator (1=1/2 2=2/3 3=3/4 5=5/6 7=7/8)
 }
 
 export interface SatelliteRecord {
