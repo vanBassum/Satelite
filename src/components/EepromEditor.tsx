@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useRef, useState } from "react"
 import { ChevronDownIcon, ChevronRightIcon, DownloadIcon, UploadIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -20,16 +20,6 @@ export function EepromEditor() {
     setSatellites(parseEeprom(raw))
     setExpanded(null)
   }, [])
-
-  useEffect(() => {
-    fetch("/update.eep")
-      .then(r => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`)
-        return r.text()
-      })
-      .then(t => loadBuffer(parseIntelHex(t)))
-      .catch(() => setStatus("Auto-load failed — upload your own .eep file."))
-  }, [loadBuffer])
 
   function handleUpload(file: File) {
     const reader = new FileReader()
