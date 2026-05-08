@@ -1,106 +1,36 @@
-import { useCallback, useRef, useState } from "react"
-import { ChevronDownIcon, ChevronRightIcon, DownloadIcon, UploadIcon } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { useState } from "react"
+import { ChevronDownIcon, ChevronRightIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { parseIntelHex, serializeIntelHex } from "@/lib/intel-hex"
-import { applyEeprom, parseEeprom, type SatelliteRecord, type Transponder } from "@/lib/eeprom"
+import { type SatelliteRecord, type Transponder } from "@/lib/eeprom"
 
 const field =
   "rounded border border-input bg-background px-2 py-1 font-mono text-sm focus:outline-none focus:ring-1 focus:ring-ring"
 
-export function EepromEditor() {
-  const [buf, setBuf] = useState<Uint8Array | null>(null)
-  const [satellites, setSatellites] = useState<SatelliteRecord[]>([])
+interface Props {
+  satellites: SatelliteRecord[]
+  onPatchSat: (idx: number, patch: Partial<SatelliteRecord>) => void
+  onPatchTp: (satIdx: number, tpIdx: number, patch: Partial<Transponder>) => void
+}
+
+export function EepromEditor({ satellites, onPatchSat, onPatchTp }: Props) {
   const [expanded, setExpanded] = useState<number | null>(null)
-  const [status, setStatus] = useState<string | null>(null)
-  const fileRef = useRef<HTMLInputElement>(null)
 
-  const loadBuffer = useCallback((raw: Uint8Array) => {
-    setBuf(raw)
-    setSatellites(parseEeprom(raw))
-    setExpanded(null)
-  }, [])
-
-  function handleUpload(file: File) {
-    const reader = new FileReader()
-    reader.onload = e => {
-      try {
-        loadBuffer(parseIntelHex(e.target!.result as string))
-        setStatus(`Loaded: ${file.name}`)
-      } catch {
-        setStatus("Failed to parse file.")
-      }
-    }
-    reader.onerror = () => setStatus("Failed to read file.")
-    reader.readAsText(file)
-  }
-
-  function handleDownload() {
-    if (!buf) return
-    const cloned = new Uint8Array(buf)
-    applyEeprom(cloned, satellites)
-    const blob = new Blob([serializeIntelHex(cloned)], { type: "application/octet-stream" })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement("a")
-    a.href = url
-    a.download = "update.eep"
-    a.click()
-    URL.revokeObjectURL(url)
-  }
-
-  function patchSat(idx: number, patch: Partial<SatelliteRecord>) {
-    setSatellites(prev => prev.map((s, i) => (i === idx ? { ...s, ...patch } : s)))
-  }
-
-  function patchTp(satIdx: number, tpIdx: number, patch: Partial<Transponder>) {
-    setSatellites(prev =>
-      prev.map((s, i) => {
-        if (i !== satIdx) return s
-        return {
-          ...s,
-          transponders: s.transponders.map((tp, ti) =>
-            ti === tpIdx ? { ...tp, ...patch } : tp,
-          ),
-        }
-      }),
-    )
-  }
+  if (satellites.length === 0) return null
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center gap-2">
-        <Button variant="outline" size="sm" onClick={() => fileRef.current?.click()}>
-          <UploadIcon />
-          Upload .eep
-        </Button>
-        <input
-          ref={fileRef}
-          type="file"
-          accept=".eep,.hex"
-          className="sr-only"
-          onChange={e => e.target.files?.[0] && handleUpload(e.target.files[0])}
-        />
-        <Button size="sm" disabled={!buf} onClick={handleDownload}>
-          <DownloadIcon />
-          Download
-        </Button>
-        {status && <span className="text-xs text-muted-foreground">{status}</span>}
+    <div className="p-6">
+      <div className="divide-y rounded-lg border">
+        {satellites.map((sat, i) => (
+          <SatRow
+            key={i}
+            sat={sat}
+            isExpanded={expanded === i}
+            onToggle={() => setExpanded(prev => (prev === i ? null : i))}
+            onPatchSat={patch => onPatchSat(i, patch)}
+            onPatchTp={(ti, patch) => onPatchTp(i, ti, patch)}
+          />
+        ))}
       </div>
-
-      {satellites.length > 0 && (
-        <div className="divide-y rounded-lg border">
-          {satellites.map((sat, i) => (
-            <SatRow
-              key={i}
-              sat={sat}
-              isExpanded={expanded === i}
-              onToggle={() => setExpanded(prev => (prev === i ? null : i))}
-              onPatchSat={patch => patchSat(i, patch)}
-              onPatchTp={(ti, patch) => patchTp(i, ti, patch)}
-            />
-          ))}
-        </div>
-      )}
     </div>
   )
 }

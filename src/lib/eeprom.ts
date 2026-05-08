@@ -46,6 +46,59 @@ export function parseEeprom(buf: Uint8Array): SatelliteRecord[] {
   })
 }
 
+export type FieldType =
+  | 'header' | 'name' | 'flags' | 'reservedA'
+  | 'freq' | 'srate' | 'pol' | 'reservedB'
+  | 'fecmod' | 'pad' | 'unknown'
+
+export interface ByteAnnotation {
+  type: FieldType
+  label: string
+}
+
+export function buildByteMap(bufLen: number): ByteAnnotation[] {
+  const map: ByteAnnotation[] = Array.from({ length: bufLen }, (_, i) => ({
+    type: 'unknown' as FieldType,
+    label: `0x${i.toString(16).toUpperCase().padStart(4, '0')}`,
+  }))
+
+  for (let i = 0; i < Math.min(SAT_TABLE, bufLen); i++)
+    map[i] = { type: 'header', label: `Header +0x${i.toString(16).toUpperCase().padStart(3, '0')}` }
+
+  for (let s = 0; s < SAT_COUNT; s++) {
+    const b = SAT_TABLE + s * RECORD_SIZE
+    if (b >= bufLen) break
+    const sn = `Sat ${s + 1}`
+
+    for (let j = 0; j < 16 && b + j < bufLen; j++)
+      map[b + j] = { type: 'name', label: `${sn} · Name [${j}]` }
+    if (b + 16 < bufLen)
+      map[b + 16] = { type: 'flags', label: `${sn} · Flags` }
+    for (let j = 0; j < 10 && b + 17 + j < bufLen; j++)
+      map[b + 17 + j] = { type: 'reservedA', label: `${sn} · Reserved A [${j}]` }
+
+    for (let t = 0; t < 4; t++) {
+      const f = b + 0x1b + t * 2
+      if (f < bufLen) map[f] = { type: 'freq', label: `${sn} · TP${t + 1} Freq lo` }
+      if (f + 1 < bufLen) map[f + 1] = { type: 'freq', label: `${sn} · TP${t + 1} Freq hi` }
+      const sr = b + 0x23 + t * 2
+      if (sr < bufLen) map[sr] = { type: 'srate', label: `${sn} · TP${t + 1} SRate lo` }
+      if (sr + 1 < bufLen) map[sr + 1] = { type: 'srate', label: `${sn} · TP${t + 1} SRate hi` }
+      const p = b + 0x2b + t
+      if (p < bufLen) map[p] = { type: 'pol', label: `${sn} · TP${t + 1} Polarization` }
+      const fm = b + 0x37 + t
+      if (fm < bufLen) map[fm] = { type: 'fecmod', label: `${sn} · TP${t + 1} FEC/Mod` }
+    }
+
+    for (let j = 0; j < 8 && b + 0x2f + j < bufLen; j++)
+      map[b + 0x2f + j] = { type: 'reservedB', label: `${sn} · Reserved B [${j}]` }
+    for (let j = 0; j < 5 && b + 0x3b + j < bufLen; j++)
+      map[b + 0x3b + j] = { type: 'pad', label: `${sn} · Pad [${j}]` }
+  }
+
+  return map
+}
+
 export function applyEeprom(buf: Uint8Array, records: SatelliteRecord[]): void {
   for (let i = 0; i < Math.min(records.length, SAT_COUNT); i++) {
     const b = SAT_TABLE + i * RECORD_SIZE
