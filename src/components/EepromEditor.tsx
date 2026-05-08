@@ -2,17 +2,13 @@ import { useState } from "react"
 import { ChevronDownIcon, ChevronRightIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { type SatelliteRecord, type Transponder } from "@/lib/eeprom"
+import { useEepromStore } from "@/lib/store"
 
 const field =
   "rounded border border-input bg-background px-2 py-1 font-mono text-sm focus:outline-none focus:ring-1 focus:ring-ring"
 
-interface Props {
-  satellites: SatelliteRecord[]
-  onPatchSat: (idx: number, patch: Partial<SatelliteRecord>) => void
-  onPatchTp: (satIdx: number, tpIdx: number, patch: Partial<Transponder>) => void
-}
-
-export function EepromEditor({ satellites, onPatchSat, onPatchTp }: Props) {
+export function EepromEditor() {
+  const { satellites, patchSat, patchTp } = useEepromStore()
   const [expanded, setExpanded] = useState<number | null>(null)
 
   if (satellites.length === 0) return null
@@ -26,8 +22,8 @@ export function EepromEditor({ satellites, onPatchSat, onPatchTp }: Props) {
             sat={sat}
             isExpanded={expanded === i}
             onToggle={() => setExpanded(prev => (prev === i ? null : i))}
-            onPatchSat={patch => onPatchSat(i, patch)}
-            onPatchTp={(ti, patch) => onPatchTp(i, ti, patch)}
+            onPatchSat={patch => patchSat(i, patch)}
+            onPatchTp={(ti, patch) => patchTp(i, ti, patch)}
           />
         ))}
       </div>

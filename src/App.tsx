@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react"
+import { useRef } from "react"
 import { BinaryIcon, DownloadIcon, ListIcon, MoonIcon, SunIcon, TriangleAlertIcon, UploadIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
@@ -17,28 +17,23 @@ import { useTheme } from "@/components/theme-provider"
 import { EepromEditor } from "@/components/EepromEditor"
 import { HexView } from "@/components/HexView"
 import { parseIntelHex, serializeIntelHex } from "@/lib/intel-hex"
-import { applyEeprom, parseEeprom, type SatelliteRecord, type Transponder } from "@/lib/eeprom"
+import { useEepromStore } from "@/lib/store"
+import { useState } from "react"
 
 type Page = "satellites" | "hex"
 
 export function App() {
-  const [buf, setBuf] = useState<Uint8Array | null>(null)
-  const [satellites, setSatellites] = useState<SatelliteRecord[]>([])
+  const { buf, load } = useEepromStore()
   const [page, setPage] = useState<Page>("satellites")
   const fileRef = useRef<HTMLInputElement>(null)
-
-  const loadBuffer = useCallback((raw: Uint8Array) => {
-    setBuf(raw)
-    setSatellites(parseEeprom(raw))
-  }, [])
 
   function handleUpload(file: File) {
     const reader = new FileReader()
     reader.onload = e => {
       try {
-        loadBuffer(parseIntelHex(e.target!.result as string))
+        load(parseIntelHex(e.target!.result as string))
       } catch {
-        // ignore parse errors silently — user sees nothing loaded
+        // ignore — nothing loads
       }
     }
     reader.readAsText(file)
@@ -46,31 +41,13 @@ export function App() {
 
   function handleDownload() {
     if (!buf) return
-    const cloned = new Uint8Array(buf)
-    applyEeprom(cloned, satellites)
-    const blob = new Blob([serializeIntelHex(cloned)], { type: "application/octet-stream" })
+    const blob = new Blob([serializeIntelHex(buf)], { type: "application/octet-stream" })
     const url = URL.createObjectURL(blob)
     const a = document.createElement("a")
     a.href = url
     a.download = "update.eep"
     a.click()
     URL.revokeObjectURL(url)
-  }
-
-  function patchSat(idx: number, patch: Partial<SatelliteRecord>) {
-    setSatellites(prev => prev.map((s, i) => (i === idx ? { ...s, ...patch } : s)))
-  }
-
-  function patchTp(satIdx: number, tpIdx: number, patch: Partial<Transponder>) {
-    setSatellites(prev =>
-      prev.map((s, i) => {
-        if (i !== satIdx) return s
-        return {
-          ...s,
-          transponders: s.transponders.map((tp, ti) => (ti === tpIdx ? { ...tp, ...patch } : tp)),
-        }
-      }),
-    )
   }
 
   const { theme, setTheme } = useTheme()
@@ -83,64 +60,69 @@ export function App() {
           <h1 className="text-sm font-semibold tracking-tight">Satelite EEPROM Editor</h1>
         </div>
 
-        <div className="flex items-center gap-0.5 border-b px-2 py-1.5">
-          <Button variant="ghost" size="icon-sm" asChild>
-            <a href="https://github.com/vanBassum/Satelite" target="_blank" rel="noreferrer" aria-label="GitHub repository">
-              <GitHubIcon className="size-3.5" />
-            </a>
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            aria-label="Upload .eep file"
-            onClick={() => fileRef.current?.click()}
-          >
-            <UploadIcon className="size-3.5" />
-          </Button>
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                aria-label="Download .eep file"
-                disabled={!buf}
-              >
-                <DownloadIcon className="size-3.5" />
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Experimental software</AlertDialogTitle>
-                <AlertDialogDescription>
-                  This tool is based on reverse-engineered data and is provided for experimentation only.
-                  The generated file may be incorrect or damage your device. Use at your own risk.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={handleDownload}>Download anyway</AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            aria-label="Toggle theme"
-            onClick={() => setTheme(isDark ? "light" : "dark")}
-          >
-            {isDark ? <SunIcon className="size-3.5" /> : <MoonIcon className="size-3.5" />}
-          </Button>
-        </div>
-
-        {!buf && (
-          <div className="relative mx-3 mt-3">
-            <div className="absolute -top-1.5 left-10 size-3 rotate-45 border-l border-t border-border bg-popover" />
-            <div className="rounded-md border bg-popover p-2.5 text-xs text-popover-foreground shadow-sm">
-              Press <UploadIcon className="mb-0.5 inline size-3" /> to upload a{" "}
-              <span className="font-medium">.eep</span> file and get started.
-            </div>
+        <div className="relative border-b">
+          <div className="flex items-center gap-0.5 px-2 py-1.5">
+            <Button variant="ghost" size="icon-sm" title="GitHub repository" asChild>
+              <a href="https://github.com/vanBassum/Satelite" target="_blank" rel="noreferrer" aria-label="GitHub repository">
+                <GitHubIcon className="size-3.5" />
+              </a>
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              title="Upload .eep file"
+              aria-label="Upload .eep file"
+              onClick={() => fileRef.current?.click()}
+            >
+              <UploadIcon className="size-3.5" />
+            </Button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  title="Download .eep file"
+                  aria-label="Download .eep file"
+                  disabled={!buf}
+                >
+                  <DownloadIcon className="size-3.5" />
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Experimental software</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This tool is based on reverse-engineered data and is provided for experimentation only.
+                    The generated file may be incorrect or damage your device. Use at your own risk.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleDownload}>Download anyway</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              title="Toggle dark / light theme"
+              aria-label="Toggle theme"
+              onClick={() => setTheme(isDark ? "light" : "dark")}
+            >
+              {isDark ? <SunIcon className="size-3.5" /> : <MoonIcon className="size-3.5" />}
+            </Button>
           </div>
-        )}
+
+          {!buf && (
+            <div className="absolute left-full top-0 z-20 ml-2 mt-1">
+              <div className="absolute -left-1.5 top-2.5 size-3 rotate-45 border-b border-l border-border bg-popover" />
+              <div className="w-44 rounded-md border bg-popover p-2.5 text-xs text-popover-foreground shadow-md">
+                Press <UploadIcon className="mb-0.5 inline size-3" /> to upload a{" "}
+                <span className="font-medium">.eep</span> file and get started.
+              </div>
+            </div>
+          )}
+        </div>
 
         <input
           ref={fileRef}
@@ -185,9 +167,9 @@ export function App() {
             </Button>
           </div>
         ) : page === "satellites" ? (
-          <EepromEditor satellites={satellites} onPatchSat={patchSat} onPatchTp={patchTp} />
+          <EepromEditor />
         ) : (
-          <HexView buf={buf} />
+          <HexView />
         )}
       </main>
     </div>

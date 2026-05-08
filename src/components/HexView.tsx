@@ -1,27 +1,28 @@
 import { useMemo, useState } from "react"
 import { cn } from "@/lib/utils"
 import { buildByteMap, type ByteAnnotation, type FieldType } from "@/lib/eeprom"
+import { useEepromStore } from "@/lib/store"
 
-const FIELD_META: Record<FieldType, { label: string; cls: string; activeCls: string }> = {
+const FIELD_META: Record<FieldType, { label: string; cls: string; activeCls: string; detail: string }> = {
   // Header sub-regions
-  config:    { label: "Device Config",     cls: "bg-amber-100 dark:bg-amber-900/50",    activeCls: "bg-amber-200 dark:bg-amber-800" },
-  profile:   { label: "Profile Names",     cls: "bg-teal-100 dark:bg-teal-900/50",      activeCls: "bg-teal-200 dark:bg-teal-800" },
-  lnb:       { label: "LNB Config",        cls: "bg-indigo-100 dark:bg-indigo-900/50",  activeCls: "bg-indigo-200 dark:bg-indigo-800" },
-  ch_table:  { label: "Channel Table",     cls: "bg-orange-100 dark:bg-orange-900/50",  activeCls: "bg-orange-200 dark:bg-orange-800" },
-  firmware:  { label: "Firmware Magic/ID", cls: "bg-red-100 dark:bg-red-900/50",        activeCls: "bg-red-200 dark:bg-red-800" },
-  version:   { label: "Version Info",      cls: "bg-pink-100 dark:bg-pink-900/50",      activeCls: "bg-pink-200 dark:bg-pink-800" },
-  header:    { label: "Header (unknown)",  cls: "bg-slate-100 dark:bg-slate-800",       activeCls: "bg-slate-200 dark:bg-slate-700" },
-  // Satellite record fields
-  name:      { label: "Sat Name",          cls: "bg-blue-100 dark:bg-blue-900/60",      activeCls: "bg-blue-200 dark:bg-blue-800" },
-  flags:     { label: "Flags",             cls: "bg-violet-100 dark:bg-violet-900/60",  activeCls: "bg-violet-200 dark:bg-violet-800" },
-  reservedA: { label: "Reserved A",        cls: "bg-slate-50 dark:bg-slate-800/50",     activeCls: "bg-slate-200 dark:bg-slate-700" },
-  freq:      { label: "Frequency",         cls: "bg-green-100 dark:bg-green-900/60",    activeCls: "bg-green-200 dark:bg-green-800" },
-  srate:     { label: "Symbol Rate",       cls: "bg-yellow-100 dark:bg-yellow-900/60",  activeCls: "bg-yellow-200 dark:bg-yellow-800" },
-  pol:       { label: "Polarization",      cls: "bg-rose-100 dark:bg-rose-900/60",      activeCls: "bg-rose-200 dark:bg-rose-800" },
-  reservedB: { label: "Reserved B",        cls: "bg-slate-50 dark:bg-slate-800/50",     activeCls: "bg-slate-200 dark:bg-slate-700" },
-  fecmod:    { label: "FEC / Mod",         cls: "bg-cyan-100 dark:bg-cyan-900/60",      activeCls: "bg-cyan-200 dark:bg-cyan-800" },
-  pad:       { label: "Pad",               cls: "bg-neutral-100 dark:bg-neutral-800",   activeCls: "bg-neutral-200 dark:bg-neutral-700" },
-  unknown:   { label: "Unknown",           cls: "bg-background",                        activeCls: "bg-muted" },
+  config:    { label: "Device Config",     cls: "bg-amber-100 dark:bg-amber-900/50",    activeCls: "bg-amber-200 dark:bg-amber-800",   detail: "0x000–0x07F · 128 bytes\nMotor + LO config, L-band frequency presets (1100 / 1500 / 1890 MHz)" },
+  profile:   { label: "Profile Names",     cls: "bg-teal-100 dark:bg-teal-900/50",      activeCls: "bg-teal-200 dark:bg-teal-800",     detail: "0x0A6–0x105 · 96 bytes\n6 × 16-byte antenna profile name slots (null-padded ASCII)" },
+  lnb:       { label: "LNB Config",        cls: "bg-indigo-100 dark:bg-indigo-900/50",  activeCls: "bg-indigo-200 dark:bg-indigo-800", detail: "0x1F6–0x205 · 16 bytes\nLNB and signal configuration block" },
+  ch_table:  { label: "Channel Table",     cls: "bg-orange-100 dark:bg-orange-900/50",  activeCls: "bg-orange-200 dark:bg-orange-800", detail: "0x206–0x36D · 360 bytes\n180 × U16-LE channel frequency presets (default 999)" },
+  firmware:  { label: "Firmware Magic/ID", cls: "bg-red-100 dark:bg-red-900/50",        activeCls: "bg-red-200 dark:bg-red-800",       detail: "0x37A–0x389 · 16 bytes\nMagic 99 AA 55 + ID string \"UEU/30MAR2009\"" },
+  version:   { label: "Version Info",      cls: "bg-pink-100 dark:bg-pink-900/50",      activeCls: "bg-pink-200 dark:bg-pink-800",     detail: "0x3A0–0x3AF · 16 bytes\nFirmware version bytes (e.g. 02, 03 01 06)" },
+  header:    { label: "Header (unknown)",  cls: "bg-slate-100 dark:bg-slate-800",       activeCls: "bg-slate-200 dark:bg-slate-700",   detail: "0x000–0x3FF · remaining bytes\nUnidentified header region (boot constants, model table)" },
+  // Satellite record fields — offsets are relative to each 64-byte record starting at 0x400
+  name:      { label: "Sat Name",          cls: "bg-blue-100 dark:bg-blue-900/60",      activeCls: "bg-blue-200 dark:bg-blue-800",     detail: "+0x00–0x0F · 16 bytes per record\nASCII satellite name, space-padded" },
+  flags:     { label: "Flags",             cls: "bg-violet-100 dark:bg-violet-900/60",  activeCls: "bg-violet-200 dark:bg-violet-800", detail: "+0x10 · 1 byte per record\nSatellite flags (exact meaning TBD)" },
+  reservedA: { label: "Reserved A",        cls: "bg-slate-50 dark:bg-slate-800/50",     activeCls: "bg-slate-200 dark:bg-slate-700",   detail: "+0x11–0x1A · 10 bytes per record\nUnused / reserved" },
+  freq:      { label: "Frequency",         cls: "bg-green-100 dark:bg-green-900/60",    activeCls: "bg-green-200 dark:bg-green-800",   detail: "+0x1B–0x22 · 8 bytes per record\n4 × U16-LE transponder frequency in MHz" },
+  srate:     { label: "Symbol Rate",       cls: "bg-yellow-100 dark:bg-yellow-900/60",  activeCls: "bg-yellow-200 dark:bg-yellow-800", detail: "+0x23–0x2A · 8 bytes per record\n4 × U16-LE symbol rate in kS/s" },
+  pol:       { label: "Polarization",      cls: "bg-rose-100 dark:bg-rose-900/60",      activeCls: "bg-rose-200 dark:bg-rose-800",     detail: "+0x2B–0x2E · 4 bytes per record\n0=H · 1=V · 2=H+22kHz · 3=V+22kHz" },
+  reservedB: { label: "Reserved B",        cls: "bg-slate-50 dark:bg-slate-800/50",     activeCls: "bg-slate-200 dark:bg-slate-700",   detail: "+0x2F–0x36 · 8 bytes per record\nUnused / reserved" },
+  fecmod:    { label: "FEC / Mod",         cls: "bg-cyan-100 dark:bg-cyan-900/60",      activeCls: "bg-cyan-200 dark:bg-cyan-800",     detail: "+0x37–0x3A · 4 bytes per record\nFEC + modulation, nibble-packed (TBD)" },
+  pad:       { label: "Pad",               cls: "bg-neutral-100 dark:bg-neutral-800",   activeCls: "bg-neutral-200 dark:bg-neutral-700", detail: "+0x3B–0x3F · 5 bytes per record\nPadding bytes" },
+  unknown:   { label: "Unknown",           cls: "bg-background",                        activeCls: "bg-muted",                         detail: "Unidentified bytes" },
 }
 
 const LEGEND_TYPES: FieldType[] = [
@@ -32,7 +33,8 @@ const LEGEND_TYPES: FieldType[] = [
 
 const ROW_SIZE = 16
 
-export function HexView({ buf }: { buf: Uint8Array }) {
+export function HexView() {
+  const buf = useEepromStore(s => s.buf)!
   const byteMap = useMemo(() => buildByteMap(buf.length), [buf.length])
   const [hoveredOffset, setHoveredOffset] = useState<number | null>(null)
   const [highlightType, setHighlightType] = useState<FieldType | null>(null)
@@ -93,7 +95,7 @@ export function HexView({ buf }: { buf: Uint8Array }) {
       </div>
 
       {/* Right legend panel */}
-      <aside className="flex w-48 shrink-0 flex-col overflow-hidden border-l">
+      <aside className="flex w-52 shrink-0 flex-col overflow-hidden border-l">
         {/* Hovered byte info */}
         <div className="flex min-h-[5rem] flex-col justify-center border-b p-3 text-xs">
           {hoveredAnn ? (
@@ -123,16 +125,23 @@ export function HexView({ buf }: { buf: Uint8Array }) {
               <button
                 key={type}
                 className={cn(
-                  "flex w-full items-center gap-2 rounded px-2 py-1 text-left text-xs",
+                  "flex w-full flex-col rounded px-2 py-1 text-left text-xs",
                   isActive ? "bg-muted" : "hover:bg-muted/50",
                 )}
                 onMouseEnter={() => setHighlightType(type)}
                 onMouseLeave={() => setHighlightType(null)}
               >
-                <span
-                  className={cn("size-3 shrink-0 rounded-sm border border-border", meta.activeCls)}
-                />
-                {meta.label}
+                <div className="flex items-center gap-2">
+                  <span
+                    className={cn("size-3 shrink-0 rounded-sm border border-border", meta.activeCls)}
+                  />
+                  {meta.label}
+                </div>
+                {isActive && (
+                  <p className="mt-1 whitespace-pre-line pl-5 text-muted-foreground">
+                    {meta.detail}
+                  </p>
+                )}
               </button>
             )
           })}
