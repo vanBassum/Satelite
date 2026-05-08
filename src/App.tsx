@@ -1,4 +1,4 @@
-import { useRef } from "react"
+import { useRef, startTransition } from "react"
 import { BinaryIcon, DownloadIcon, ListIcon, MoonIcon, SunIcon, TriangleAlertIcon, UploadIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
@@ -137,7 +137,7 @@ export function App() {
             icon={<ListIcon className="size-3.5" />}
             active={page === "satellites"}
             disabled={!buf}
-            onClick={() => setPage("satellites")}
+            onClick={() => startTransition(() => setPage("satellites"))}
           >
             Satellites
           </NavButton>
@@ -145,7 +145,7 @@ export function App() {
             icon={<BinaryIcon className="size-3.5" />}
             active={page === "hex"}
             disabled={!buf}
-            onClick={() => setPage("hex")}
+            onClick={() => startTransition(() => setPage("hex"))}
           >
             Hex View
           </NavButton>
