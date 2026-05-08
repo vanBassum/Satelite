@@ -1,21 +1,9 @@
-# React + TypeScript + Vite + shadcn/ui
+# Satelite EEPROM Editor
 
-This is a template for a new Vite project with React, TypeScript, and shadcn/ui.
+Web tool for viewing and editing the EEPROM of Ten-Haaft satellite dish controllers.
 
-## Adding components
+> **Disclaimer:** This tool is based on reverse-engineered data. No guarantees are made about correctness or compatibility. Use at your own risk.
 
-To add components to your app, run the following command:
+## EEPROM Format
 
-```bash
-npx shadcn@latest add button
-```
-
-This will place the ui components in the `src/components` directory.
-
-## Using components
-
-To use the components in your app, import them as follows:
-
-```tsx
-import { Button } from "@/components/ui/button"
-```
+See [docs/eeprom-format.md](docs/eeprom-format.md) for the full byte map of the `update.eep` file.

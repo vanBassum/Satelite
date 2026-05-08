@@ -1,19 +1,28 @@
-import { Button } from "@/components/ui/button"
+import { TriangleAlertIcon } from "lucide-react"
+import { EepromEditor } from "@/components/EepromEditor"
 
 export function App() {
   return (
-    <div className="flex min-h-svh p-6">
-      <div className="flex max-w-md min-w-0 flex-col gap-4 text-sm leading-loose">
-        <div>
-          <h1 className="font-medium">Project ready!</h1>
-          <p>You may now add components and start building.</p>
-          <p>We&apos;ve already added the button component for you.</p>
-          <Button className="mt-2">Button</Button>
-        </div>
-        <div className="font-mono text-xs text-muted-foreground">
-          (Press <kbd>d</kbd> to toggle dark mode)
+    <div className="mx-auto flex min-h-svh max-w-3xl flex-col gap-8 p-6">
+      <header className="flex flex-col gap-1">
+        <h1 className="text-xl font-semibold tracking-tight">Satelite EEPROM Editor</h1>
+        <p className="text-sm text-muted-foreground">
+          View and edit the EEPROM of Ten-Haaft satellite dish controllers.
+        </p>
+      </header>
+
+      <div className="flex items-start gap-3 rounded-lg border border-yellow-200 bg-yellow-50 p-4 text-sm dark:border-yellow-900/60 dark:bg-yellow-950/30">
+        <TriangleAlertIcon className="mt-0.5 size-4 shrink-0 text-yellow-600 dark:text-yellow-400" />
+        <div className="text-yellow-800 dark:text-yellow-200">
+          <span className="font-semibold">Experimental — use at your own risk.</span> <br/>
+          This tool is based on reverse-engineered data. No guarantees are made about correctness, completeness,
+          or compatibility.
         </div>
       </div>
+
+      <main className="flex-1">
+        <EepromEditor />
+      </main>
     </div>
   )
 }
