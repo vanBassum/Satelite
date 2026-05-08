@@ -25,7 +25,6 @@ export function App() {
   const [buf, setBuf] = useState<Uint8Array | null>(null)
   const [satellites, setSatellites] = useState<SatelliteRecord[]>([])
   const [page, setPage] = useState<Page>("satellites")
-  const [status, setStatus] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
   const loadBuffer = useCallback((raw: Uint8Array) => {
@@ -38,12 +37,10 @@ export function App() {
     reader.onload = e => {
       try {
         loadBuffer(parseIntelHex(e.target!.result as string))
-        setStatus(`Loaded: ${file.name}`)
       } catch {
-        setStatus("Failed to parse file.")
+        // ignore parse errors silently — user sees nothing loaded
       }
     }
-    reader.onerror = () => setStatus("Failed to read file.")
     reader.readAsText(file)
   }
 
@@ -85,6 +82,7 @@ export function App() {
         <div className="border-b px-3 py-2">
           <h1 className="text-sm font-semibold tracking-tight">Satelite EEPROM Editor</h1>
         </div>
+
         <div className="flex items-center gap-0.5 border-b px-2 py-1.5">
           <Button variant="ghost" size="icon-sm" asChild>
             <a href="https://github.com/vanBassum/Satelite" target="_blank" rel="noreferrer" aria-label="GitHub repository">
@@ -94,32 +92,20 @@ export function App() {
           <Button
             variant="ghost"
             size="icon-sm"
-            aria-label="Toggle theme"
-            onClick={() => setTheme(isDark ? "light" : "dark")}
-          >
-            {isDark ? <SunIcon className="size-3.5" /> : <MoonIcon className="size-3.5" />}
-          </Button>
-        </div>
-
-        <div className="flex flex-col gap-2 border-b p-3">
-          <Button
-            variant="outline"
-            size="sm"
-            className="w-full justify-start"
+            aria-label="Upload .eep file"
             onClick={() => fileRef.current?.click()}
           >
-            <UploadIcon className="mr-2 size-3.5" />
-            Upload .eep
+            <UploadIcon className="size-3.5" />
           </Button>
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <Button
-                size="sm"
-                className="w-full justify-start"
+                variant="ghost"
+                size="icon-sm"
+                aria-label="Download .eep file"
                 disabled={!buf}
               >
-                <DownloadIcon className="mr-2 size-3.5" />
-                Download
+                <DownloadIcon className="size-3.5" />
               </Button>
             </AlertDialogTrigger>
             <AlertDialogContent>
@@ -136,15 +122,33 @@ export function App() {
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
-          <input
-            ref={fileRef}
-            type="file"
-            accept=".eep,.hex"
-            className="sr-only"
-            onChange={e => e.target.files?.[0] && handleUpload(e.target.files[0])}
-          />
-          {status && <p className="text-xs text-muted-foreground">{status}</p>}
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label="Toggle theme"
+            onClick={() => setTheme(isDark ? "light" : "dark")}
+          >
+            {isDark ? <SunIcon className="size-3.5" /> : <MoonIcon className="size-3.5" />}
+          </Button>
         </div>
+
+        {!buf && (
+          <div className="relative mx-3 mt-3">
+            <div className="absolute -top-1.5 left-10 size-3 rotate-45 border-l border-t border-border bg-popover" />
+            <div className="rounded-md border bg-popover p-2.5 text-xs text-popover-foreground shadow-sm">
+              Press <UploadIcon className="mb-0.5 inline size-3" /> to upload a{" "}
+              <span className="font-medium">.eep</span> file and get started.
+            </div>
+          </div>
+        )}
+
+        <input
+          ref={fileRef}
+          type="file"
+          accept=".eep,.hex"
+          className="sr-only"
+          onChange={e => e.target.files?.[0] && handleUpload(e.target.files[0])}
+        />
 
         <nav className="flex flex-1 flex-col gap-0.5 p-2">
           <NavButton
