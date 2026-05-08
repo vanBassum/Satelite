@@ -2,18 +2,18 @@ import { useMemo, useState } from "react"
 import { cn } from "@/lib/utils"
 import { buildByteMap, type ByteAnnotation, type FieldType } from "@/lib/eeprom"
 
-const FIELD_META: Record<FieldType, { label: string; color: string; activeColor: string }> = {
-  header:    { label: "Header",       color: "#f3f4f6", activeColor: "#d1d5db" },
-  name:      { label: "Name",         color: "#dbeafe", activeColor: "#93c5fd" },
-  flags:     { label: "Flags",        color: "#ede9fe", activeColor: "#c4b5fd" },
-  reservedA: { label: "Reserved A",   color: "#f1f5f9", activeColor: "#cbd5e1" },
-  freq:      { label: "Frequency",    color: "#dcfce7", activeColor: "#86efac" },
-  srate:     { label: "Symbol Rate",  color: "#fef9c3", activeColor: "#fde047" },
-  pol:       { label: "Polarization", color: "#ffe4e6", activeColor: "#fda4af" },
-  reservedB: { label: "Reserved B",   color: "#f8fafc", activeColor: "#e2e8f0" },
-  fecmod:    { label: "FEC / Mod",    color: "#cffafe", activeColor: "#67e8f9" },
-  pad:       { label: "Pad",          color: "#fafafa", activeColor: "#d4d4d4" },
-  unknown:   { label: "Unknown",      color: "#ffffff", activeColor: "#f3f4f6" },
+const FIELD_META: Record<FieldType, { label: string; cls: string; activeCls: string }> = {
+  header:    { label: "Header",       cls: "bg-slate-100 dark:bg-slate-800",         activeCls: "bg-slate-200 dark:bg-slate-700" },
+  name:      { label: "Name",         cls: "bg-blue-100 dark:bg-blue-900/60",        activeCls: "bg-blue-200 dark:bg-blue-800" },
+  flags:     { label: "Flags",        cls: "bg-violet-100 dark:bg-violet-900/60",    activeCls: "bg-violet-200 dark:bg-violet-800" },
+  reservedA: { label: "Reserved A",   cls: "bg-slate-50 dark:bg-slate-800/50",       activeCls: "bg-slate-200 dark:bg-slate-700" },
+  freq:      { label: "Frequency",    cls: "bg-green-100 dark:bg-green-900/60",      activeCls: "bg-green-200 dark:bg-green-800" },
+  srate:     { label: "Symbol Rate",  cls: "bg-yellow-100 dark:bg-yellow-900/60",    activeCls: "bg-yellow-200 dark:bg-yellow-800" },
+  pol:       { label: "Polarization", cls: "bg-rose-100 dark:bg-rose-900/60",        activeCls: "bg-rose-200 dark:bg-rose-800" },
+  reservedB: { label: "Reserved B",   cls: "bg-slate-50 dark:bg-slate-800/50",       activeCls: "bg-slate-200 dark:bg-slate-700" },
+  fecmod:    { label: "FEC / Mod",    cls: "bg-cyan-100 dark:bg-cyan-900/60",        activeCls: "bg-cyan-200 dark:bg-cyan-800" },
+  pad:       { label: "Pad",          cls: "bg-neutral-100 dark:bg-neutral-800",     activeCls: "bg-neutral-200 dark:bg-neutral-700" },
+  unknown:   { label: "Unknown",      cls: "bg-background",                          activeCls: "bg-muted" },
 }
 
 const LEGEND_TYPES: FieldType[] = [
@@ -39,16 +39,17 @@ export function HexView({ buf }: { buf: Uint8Array }) {
     return out
   }, [buf])
 
-  function byteStyle(offset: number): React.CSSProperties {
+  function byteCls(offset: number, ci: number): string {
     const { type } = byteMap[offset]
     const meta = FIELD_META[type]
     const isActive = activeType !== null && type === activeType
     const isExact = offset === hoveredOffset
-    return {
-      backgroundColor: isActive ? meta.activeColor : meta.color,
-      outline: isExact ? "1px solid #9ca3af" : undefined,
-      outlineOffset: "-1px",
-    }
+    return cn(
+      "w-[1.6rem] cursor-default text-center",
+      ci === 8 && "ml-2",
+      isActive ? meta.activeCls : meta.cls,
+      isExact && "ring-1 ring-inset ring-border",
+    )
   }
 
   return (
@@ -66,8 +67,7 @@ export function HexView({ buf }: { buf: Uint8Array }) {
                 return (
                   <span
                     key={ci}
-                    className={cn("w-[1.6rem] cursor-default text-center", ci === 8 && "ml-2")}
-                    style={byteStyle(off)}
+                    className={byteCls(off, ci)}
                     onMouseEnter={() => setHoveredOffset(off)}
                     onMouseLeave={() => setHoveredOffset(null)}
                   >
@@ -121,8 +121,7 @@ export function HexView({ buf }: { buf: Uint8Array }) {
                 onMouseLeave={() => setHighlightType(null)}
               >
                 <span
-                  className="size-3 shrink-0 rounded-sm border border-black/10"
-                  style={{ backgroundColor: meta.activeColor }}
+                  className={cn("size-3 shrink-0 rounded-sm border border-border", meta.activeCls)}
                 />
                 {meta.label}
               </button>
