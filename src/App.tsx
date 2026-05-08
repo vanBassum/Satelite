@@ -1,6 +1,17 @@
 import { useCallback, useRef, useState } from "react"
 import { BinaryIcon, DownloadIcon, ListIcon, MoonIcon, SunIcon, TriangleAlertIcon, UploadIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 import { cn } from "@/lib/utils"
 import { useTheme } from "@/components/theme-provider"
 import { EepromEditor } from "@/components/EepromEditor"
@@ -100,15 +111,31 @@ export function App() {
             <UploadIcon className="mr-2 size-3.5" />
             Upload .eep
           </Button>
-          <Button
-            size="sm"
-            className="w-full justify-start"
-            disabled={!buf}
-            onClick={handleDownload}
-          >
-            <DownloadIcon className="mr-2 size-3.5" />
-            Download
-          </Button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button
+                size="sm"
+                className="w-full justify-start"
+                disabled={!buf}
+              >
+                <DownloadIcon className="mr-2 size-3.5" />
+                Download
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Experimental software</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This tool is based on reverse-engineered data and is provided for experimentation only.
+                  The generated file may be incorrect or damage your device. Use at your own risk.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={handleDownload}>Download anyway</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
           <input
             ref={fileRef}
             type="file"
