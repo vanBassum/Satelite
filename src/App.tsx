@@ -65,29 +65,29 @@ export function App() {
     )
   }
 
-  const { setTheme } = useTheme()
-  const isDark = document.documentElement.classList.contains("dark")
+  const { theme, setTheme } = useTheme()
+  const isDark = theme === "dark" || (theme === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches)
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
       <aside className="flex w-52 shrink-0 flex-col border-r">
-        <div className="flex items-center justify-between border-b px-3 py-2">
+        <div className="border-b px-3 py-2">
           <h1 className="text-sm font-semibold tracking-tight">Satelite EEPROM Editor</h1>
-          <div className="flex items-center gap-0.5">
-            <Button variant="ghost" size="icon-sm" asChild>
-              <a href="https://github.com/vanBassum/Satelite" target="_blank" rel="noreferrer" aria-label="GitHub repository">
-                <GitHubIcon className="size-3.5" />
-              </a>
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              aria-label="Toggle theme"
-              onClick={() => setTheme(isDark ? "light" : "dark")}
-            >
-              {isDark ? <SunIcon className="size-3.5" /> : <MoonIcon className="size-3.5" />}
-            </Button>
-          </div>
+        </div>
+        <div className="flex items-center gap-0.5 border-b px-2 py-1.5">
+          <Button variant="ghost" size="icon-sm" asChild>
+            <a href="https://github.com/vanBassum/Satelite" target="_blank" rel="noreferrer" aria-label="GitHub repository">
+              <GitHubIcon className="size-3.5" />
+            </a>
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label="Toggle theme"
+            onClick={() => setTheme(isDark ? "light" : "dark")}
+          >
+            {isDark ? <SunIcon className="size-3.5" /> : <MoonIcon className="size-3.5" />}
+          </Button>
         </div>
 
         <div className="flex flex-col gap-2 border-b p-3">
